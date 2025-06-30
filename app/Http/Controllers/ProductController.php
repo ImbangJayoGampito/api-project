@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\StoreProductRequest;
 use Illuminate\Http\Request;
 use App\Models\Product;
 use App\Http\Resources\ProductResource;
@@ -30,13 +31,8 @@ class ProductController extends Controller
 
     public function store(Request $request)
     {
-        $validator = Validator::make($request->all(), [
-            'name' => 'required|string|max:255',
-            'description' => 'required|string',
-            'price' => 'required|numeric|min:0',
-            'stock' => 'required|integer|min:0'
-        ]);
-
+        $storeProductRequest = new StoreProductRequest();
+        $validator = Validator::make($request->all(), $storeProductRequest->rules(), $storeProductRequest->messages());
         if ($validator->fails()) {
             return response()->json([
                 'message' => 'Validation failed.',
@@ -57,12 +53,16 @@ class ProductController extends Controller
 
     public function update(Request $request, Product $product)
     {
-        $validated = $request->validate([
-            'name' => 'sometimes|string|max:255',
-            'description' => 'sometimes|string',
-            'price' => 'sometimes|numeric|min:0',
-            'stock' => 'sometimes|integer|min:0'
-        ]);
+        $storeProductRequest = new StoreProductRequest();
+
+        $validator = Validator::make($request->all(), $storeProductRequest->rules(), $storeProductRequest->messages());
+        if ($validator->fails()) {
+            return response()->json([
+                'message' => 'Validation failed.',
+                'errors' => $validator->errors(),
+            ], 422);
+        }
+        $validated = $validator->validated();
 
         $product->update($validated);
 
@@ -73,8 +73,16 @@ class ProductController extends Controller
         ]);
     }
 
-    public function destroy(Product $product)
+    public function destroy($id)
     {
+        $product = Product::find($id);
+        if (!$product) {
+
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Product not found'
+            ], 404);
+        }
         $product->delete();
 
         return response()->json([
